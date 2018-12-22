@@ -1,0 +1,9 @@
+*.o
+*.bak
+*-bak
+*.bck
+*.bin
+*.elf
+*.map
+*.pyc
+*.pb

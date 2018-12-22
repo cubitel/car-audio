@@ -1,0 +1,77 @@
+
+package Main;
+
+option java_package = "org.cubitel.car.proto";
+option java_outer_classname = "Main";
+
+import "nanopb.proto";
+
+// Status messages
+
+message AudioStatus {
+	optional int32 volume = 1;          // 0..100
+	optional bool muteTuner = 2;
+}
+
+message TunerStatus {
+	optional int32 frequency = 1;       // kHz
+	optional int32 rssi = 2;            // dBuV
+	optional int32 snr = 3;             // dB
+	optional string rdsPsName = 4 [(nanopb).max_size = 10];
+	optional uint32 rdsGroups = 5;
+	optional bool stereo = 6;
+}
+
+message SystemStatus {
+	optional bool active = 1;
+}
+
+message EngineStatus {
+	optional int32 rpm = 1;
+}
+
+message StatusUpdate {
+	optional AudioStatus audio = 1;
+	optional TunerStatus tuner = 2;
+	optional SystemStatus system = 3;
+	optional EngineStatus engine = 4;
+}
+
+// Commands and responses
+
+message AudioControlRequest {
+	optional int32 volume = 1;
+	optional bool muteTuner = 2;
+}
+
+message TunerControlRequest {
+	optional int32 frequency = 1;
+	optional int32 stationId = 2;
+}
+
+message PropertyValue {
+	optional int32 propertyId = 1;
+	oneof value {
+		int32 intValue = 101;
+		string stringValue = 102 [(nanopb).max_size = 256];
+	}
+}
+
+// RPC messages
+
+message RPCRequest {
+	optional int32 requestId = 1;
+	oneof request {
+		AudioControlRequest audio = 101;
+		TunerControlRequest tuner = 102;
+		PropertyValue getProperty = 103;
+		PropertyValue setProperty = 104;
+	}
+}
+
+message RPCResponse {
+	optional int32 requestId = 1;
+	oneof response {
+		PropertyValue getProperty = 103;
+	}
+}

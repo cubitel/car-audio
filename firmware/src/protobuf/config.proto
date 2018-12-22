@@ -1,0 +1,24 @@
+
+package Config;
+
+import "nanopb.proto";
+
+message AudioConfig {
+	optional uint32 volume = 1 [default = 24];
+	optional bool muteTuner = 2;
+}
+
+message TunerConfig {
+	optional uint32 frequency = 1 [default = 102700];
+}
+
+message SystemConfig {
+	optional uint32 activeTimeout = 1 [default = 1800];
+	optional uint32 standbyTimeout = 2 [default = 3600];
+}
+
+message Config {
+	optional AudioConfig audio = 1;
+	optional TunerConfig tuner = 2;
+	optional SystemConfig system = 3;
+}
