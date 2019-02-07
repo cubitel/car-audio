@@ -159,7 +159,6 @@ static void httpSendResponse(client_t *client, uint16_t code)
 static void httpClientTask(void *p)
 {
 	int i;
-	uint8_t do_bootloader = 0;
 	uint8_t do_update = 0;
 	static const TickType_t xReceiveTimeOut = 10000;
 	Socket_t sock = (Socket_t)p;
@@ -208,12 +207,6 @@ static void httpClientTask(void *p)
 		}
 
 		/* Dispatch request */
-
-		if (!strcmp((char *)client->httpRequest, "GET /bootloader")) {
-			do_bootloader = 1;
-			httpSendResponse(client, 200);
-			break;
-		}
 
 		if (!strcmp((char *)client->httpRequest, "PUT /firmware")) {
 			if ( (client->httpBodySize < 1024) || (client->httpBodySize > 65536) ) {
@@ -302,11 +295,6 @@ static void httpClientTask(void *p)
 	}
 	FreeRTOS_closesocket(sock);
 
-	if (do_bootloader) {
-		vTaskDelay(100);
-		reboot();
-	}
-
 	if (do_update) {
 		vTaskDelay(100);
 		flashUpdateFirmware((uint8_t *)0x10000000, client->httpBodySize);
@@ -378,6 +366,14 @@ uint32_t netservMakeStatusMessage(uint8_t *buf, uint32_t size)
 	msg->has_system = true;
 	msg->system.has_active = true;
 	msg->system.active = hwGetMode();
+	msg->system.has_bootCause = true;
+	msg->system.bootCause = hwGetBootCause();
+
+	uint32_t faultAddress = *((uint32_t *)RAM_ADDRESS_VALUE);
+	if (faultAddress) {
+		msg->system.has_faultAddress = true;
+		msg->system.faultAddress = faultAddress;
+	}
 
 	msg->has_engine = true;
 	if (carGetData(CAR_DATA_ENGINE_RPM, (uint8_t *)&msg->engine.rpm, 4)) {

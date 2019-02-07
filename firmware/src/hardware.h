@@ -6,6 +6,17 @@
 #define FLASH_CONFIG_ADDRESS    0x08004000
 #define FLASH_START_ADDRESS     0x08010000
 
+#define RAM_ADDRESS_MAGIC       0x2001FFF0
+#define RAM_ADDRESS_CAUSE       0x2001FFF4
+#define RAM_ADDRESS_VALUE       0x2001FFF8
+
+#define RAM_MAGIC_WORD          0x55AA00FF
+
+#define BOOT_CAUSE_POWERON      0
+#define BOOT_CAUSE_WATCHDOG     1
+#define BOOT_CAUSE_UNHANDLED    2
+#define BOOT_CAUSE_STACKOVF     3
+
 #define PD_AOUT_STBY            (1 << 2)
 #define PD_AOUT_MUTE            (1 << 3)
 #define PD_AOUT_FAULT           (1 << 4)
@@ -51,8 +62,6 @@ typedef struct {
 } hw_request_t;
 
 void usleep(uint32_t usec);
-void startBootloader(void);
-void reboot(void);
 
 /* hw_aout.c */
 void aoutStart(void);
@@ -85,5 +94,6 @@ uint8_t hwGetMode(void);
 void hwSetMode(uint8_t mode);
 void hwTask(void *p);
 void hwSendRequest(uint16_t requestId, uint16_t wParam);
+uint32_t hwGetBootCause(void);
 
 #endif

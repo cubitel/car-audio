@@ -40,10 +40,13 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
 
 void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName)
 {
-  ( void ) pcTaskName;
-  ( void ) pxTask;
-  taskDISABLE_INTERRUPTS();
-  for(;;);
+	( void ) pcTaskName;
+	( void ) pxTask;
+	taskDISABLE_INTERRUPTS();
+
+	*((uint32_t *)RAM_ADDRESS_CAUSE) = BOOT_CAUSE_STACKOVF;
+
+	for(;;);
 }
 
 void vApplicationIdleHook(void);
@@ -55,12 +58,6 @@ void vApplicationIdleHook(void)
 
 int main(void)
 {
-	uint32_t *magicword = (uint32_t *)0x2001FFF0;
-	if (*magicword == 0xDEADBEEF) {
-		*magicword = 0;
-		startBootloader();
-	}
-
 	hwInit();
 
 	usbInit();

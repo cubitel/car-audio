@@ -36,6 +36,8 @@ static uint8_t hwCurrentMode;
 static uint32_t hwActiveCounter;
 static uint32_t hwStandbyCounter;
 
+static uint32_t bootCause;
+
 static void hwHandleRequest(uint16_t requestId, uint16_t wParam);
 
 /***************************************************************/
@@ -315,28 +317,6 @@ static void hwHandleRequest(uint16_t requestId, uint16_t wParam)
 	}
 }
 
-void startBootloader(void)
-{
-	/* Enable SYSCFG clock */
-	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-	/* Remap address 0 to bootloader */
-	SYSCFG->MEMRMP = 1;
-
-	__asm volatile (
-		"LDR     R0, =0x1FFF0000\n"
-		"LDR     SP,[R0, #0]\n"
-		"LDR     R0,[R0, #4]\n"
-		"BX      R0\n"
-	);
-}
-
-void reboot()
-{
-	*((uint32_t *)0x2001FFF0) = 0xDEADBEEF;
-	usleep(10);
-	SCB->AIRCR = ((0x5FA << 16) | (SCB->AIRCR & (0x700)) | (1 << 2));
-}
-
 void usleep(uint32_t usec)
 {
 	uint32_t count;
@@ -367,6 +347,18 @@ void hwInit()
 	IWDG->KR = 0x5555;
 	IWDG->PR = 3;
 	IWDG->KR = 0xCCCC;
+
+	/* Read boot cause from dedicated memory region */
+	uint32_t *ramMagicWord = (uint32_t *)RAM_ADDRESS_MAGIC;
+	uint32_t *ramBootCause = (uint32_t *)RAM_ADDRESS_CAUSE;
+	if (*ramMagicWord == RAM_MAGIC_WORD) {
+		bootCause = *ramBootCause;
+	} else {
+		bootCause = BOOT_CAUSE_POWERON;
+		*((uint32_t *)RAM_ADDRESS_VALUE) = 0;
+	}
+
+	*ramMagicWord = RAM_MAGIC_WORD;
 
 	/* PB7,PB8 -- I2C1, Open drain */
 	gpioSetAltFunc(GPIOB, 7, 4);
@@ -576,4 +568,9 @@ void hwSendRequest(uint16_t requestId, uint16_t wParam)
 	req.requestId = requestId;
 	req.wParam = wParam;
 	xQueueSend(hwQueue, &req, 0);
+}
+
+uint32_t hwGetBootCause()
+{
+	return bootCause;
 }

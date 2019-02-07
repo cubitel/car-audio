@@ -85,6 +85,13 @@ LoopFillZerobss:
 
 .section  .text.Default_Handler,"ax",%progbits
 Default_Handler:
+	/* Save return address */
+	ldr r0, =0x2001FFF0
+	ldr r1, [sp, #24]
+	str r1, [r0, #8]
+	/* Set 'UNHANDLED' boot cause */
+	mov r1, #2
+	str r1, [r0, #4]
 	/* System reset */
 	ldr r0, =0xE000ED0C
 	ldr r1, =0x05FA0004

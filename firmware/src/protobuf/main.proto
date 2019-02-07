@@ -24,6 +24,8 @@ message TunerStatus {
 
 message SystemStatus {
 	optional bool active = 1;
+	optional int32 bootCause = 2;
+	optional uint32 faultAddress = 3;
 }
 
 message EngineStatus {
