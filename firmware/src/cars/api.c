@@ -23,9 +23,18 @@
 
 static car_t *car;
 
-void carInit()
+void carInit(uint32_t type)
 {
-	car = (car_t *)ford_cd3xx();
+	switch (type) {
+	case CAR_TYPE_FORD_CD3XX:
+		car = (car_t *)ford_cd3xx();
+		break;
+	case CAR_TYPE_MERCEDES_W164:
+		car = (car_t *)mercedes_w164();
+		break;
+	default:
+		break;
+	}
 }
 
 void carCanInit(can_t *can1, can_t *can2)

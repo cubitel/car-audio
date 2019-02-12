@@ -54,6 +54,7 @@ void vApplicationIdleHook(void);
 void vApplicationIdleHook(void)
 {
 	IWDG->KR = 0xAAAA;
+	hwPoll();
 }
 
 int main(void)

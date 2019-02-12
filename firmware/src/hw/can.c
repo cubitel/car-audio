@@ -59,6 +59,9 @@ static void canConfigureDevice(can_t *can)
 	case CAN_SPEED_125:
 		can->device->BTR = 0x001a0017;
 		break;
+	case CAN_SPEED_83:
+		can->device->BTR = 0x0008002d;
+		break;
 	}
 
 	if ( (can->mode == CAN_MODE_AUTOBAUD) || (can->mode == CAN_MODE_LISTEN) ) {
@@ -140,33 +143,34 @@ static void canProcessTimers(can_t *can, uint32_t msec)
 	}
 }
 
-static void canReadMailbox(CAN_FIFOMailBox_TypeDef *mb)
+static void canReadMailbox(CAN_FIFOMailBox_TypeDef *mb, QueueHandle_t queue, uint8_t interfaceId)
 {
-	uint32_t id;
-	uint32_t data[2];
+	can_packet_t packet;
 
 	if (mb->RIR & CAN_RI0R_IDE) {
-		id = mb->RIR >> 3;
+		packet.canId = mb->RIR >> 3;
 	} else {
-		id = mb->RIR >> 21;
+		packet.canId = mb->RIR >> 21;
 	}
 
-	data[0] = mb->RDLR;
-	data[1] = mb->RDHR;
+	packet.interfaceId = interfaceId;
+	packet.dataLen = mb->RDTR;
+	packet.words[0] = mb->RDLR;
+	packet.words[1] = mb->RDHR;
 
-	carCanRecv(id, (uint8_t *)data, mb->RDTR);
+	xQueueSend(queue, &packet, 0);
 }
 
-static void canPoll(can_t *can)
+static void canPollInterface(can_t *can, QueueHandle_t queue)
 {
 	if (can->device->RF0R & 3) {
-		canReadMailbox(&can->device->sFIFOMailBox[0]);
+		canReadMailbox(&can->device->sFIFOMailBox[0], queue, can->interfaceId);
 		can->device->RF0R |= (1 << 5);
 		can->rxCount++;
 		can->rxTotalCount++;
 	}
 	if (can->device->RF1R & 3) {
-		canReadMailbox(&can->device->sFIFOMailBox[1]);
+		canReadMailbox(&can->device->sFIFOMailBox[1], queue, can->interfaceId);
 		can->device->RF1R |= (1 << 5);
 		can->rxCount++;
 		can->rxTotalCount++;
@@ -186,10 +190,11 @@ void canInit()
 {
 	can1.device = CAN1;
 	can1.mode = CAN_MODE_AUTOBAUD;
+	can1.interfaceId = 1;
 	can2.device = CAN2;
 	can2.mode = CAN_MODE_AUTOBAUD;
+	can2.interfaceId = 2;
 
-	carInit();
 	carCanInit(&can1, &can2);
 
 	canGoInit(&can1);
@@ -201,11 +206,14 @@ void canInit()
 
 void canProcess(uint32_t msec)
 {
-	canPoll(&can1);
-	canPoll(&can2);
-
 	canProcessTimers(&can1, msec);
 	canProcessTimers(&can2, msec);
+}
+
+void canPoll(QueueHandle_t queue)
+{
+	canPollInterface(&can1, queue);
+	canPollInterface(&can2, queue);
 }
 
 void canSend(can_t *can, uint32_t id, uint8_t *data, uint8_t len)

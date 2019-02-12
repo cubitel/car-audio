@@ -40,6 +40,8 @@ static uint32_t bootCause;
 
 static void hwHandleRequest(uint16_t requestId, uint16_t wParam);
 
+static Socket_t sockDump;
+
 /***************************************************************/
 /* ADC                                                         */
 /***************************************************************/
@@ -254,6 +256,9 @@ RAMCODE void flashSaveConfig(uint8_t *data, uint32_t len, int poweroff)
 /***************************************************************/
 
 static QueueHandle_t hwQueue;
+static QueueHandle_t hwCanInputQueue;
+
+static uint8_t dumpEnabled;
 static uint8_t statusBuffer[1024];
 
 static void hwSetVolume(uint8_t volume)
@@ -309,6 +314,13 @@ static void hwHandleRequest(uint16_t requestId, uint16_t wParam)
 		break;
 	case HWRQ_RADIO_MUTE_TOGGLE:
 		hwSetRadioMute(1 - configData()->audio.muteTuner);
+		break;
+
+	case HWRQ_SYSTEM_KEYPRESS:
+		keyEvent(wParam);
+		break;
+	case HWRQ_SYSTEM_CANDUMP:
+		dumpEnabled = wParam;
 		break;
 
 	default:
@@ -476,6 +488,7 @@ void hwSetMode(uint8_t mode)
 void hwTask(void *p)
 {
 	hwQueue = xQueueCreate(10, sizeof(hw_request_t));
+	hwCanInputQueue = xQueueCreate(20, sizeof(can_packet_t));
 
 	/* Enable I2S PLL for 48 kHz */
 	RCC->PLLI2SCFGR = (3 << 28) | (258 << 6);
@@ -488,7 +501,7 @@ void hwTask(void *p)
 	i2cInit(RADIO_CTL);
 	i2cInit(AOUT_CTL);
 
-	/*CAN also initialize CAR HAL */
+	carInit(configData()->system.carType);
 	canInit();
 
 	uint8_t prevCarActiveState = 0;
@@ -497,6 +510,11 @@ void hwTask(void *p)
 	struct freertos_sockaddr saDestAddress;
 	saDestAddress.sin_addr = FreeRTOS_inet_addr_quick(192, 168, 91, 255);
 	saDestAddress.sin_port = FreeRTOS_htons(2001);
+
+	sockDump = FreeRTOS_socket(FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
+	struct freertos_sockaddr saDumpAddress;
+	saDumpAddress.sin_addr = FreeRTOS_inet_addr_quick(192, 168, 91, 1);
+	saDumpAddress.sin_port = FreeRTOS_htons(20000);
 
 	uint8_t loopCounter = 0;
 	for (;;) {
@@ -507,8 +525,37 @@ void hwTask(void *p)
 		adcProcess();
 		canProcess(10);
 
+		can_packet_t canPacket;
+		uint8_t *dumpPointer = &statusBuffer[5];
+		uint32_t dumpLen = 5;
+		static uint8_t dumpSeq;
+		if (dumpEnabled) {
+			statusBuffer[0] = 2;
+			statusBuffer[1] = 0;
+			statusBuffer[2] = dumpSeq++;
+			statusBuffer[3] = 0;
+			statusBuffer[4] = 0;
+		}
+		while (xQueueReceive(hwCanInputQueue, &canPacket, 0) == pdTRUE) {
+			carCanRecv(canPacket.canId, canPacket.bytes, canPacket.dataLen);
+			if (dumpEnabled == canPacket.interfaceId) {
+				statusBuffer[4]++;
+				dumpPointer[0] = 0;
+				dumpPointer[1] = 0;
+				dumpPointer[2] = canPacket.canId >> 8;
+				dumpPointer[3] = canPacket.canId & 0xFF;
+				dumpPointer[4] = canPacket.dataLen;
+				memcpy(&dumpPointer[5], canPacket.bytes, canPacket.dataLen);
+				dumpPointer += canPacket.dataLen + 5;
+				dumpLen += canPacket.dataLen + 5;
+			}
+		}
+		if (dumpLen > 5) {
+			FreeRTOS_sendto(sockDump, statusBuffer, dumpLen, 0, &saDumpAddress, sizeof(saDumpAddress));
+		}
+
 		hw_request_t req;
-		if (xQueueReceive(hwQueue, &req, 0) == pdTRUE) {
+		while (xQueueReceive(hwQueue, &req, 0) == pdTRUE) {
 			hwHandleRequest(req.requestId, req.wParam);
 		}
 
@@ -560,6 +607,11 @@ void hwTask(void *p)
 			}
 		}
 	}
+}
+
+void hwPoll()
+{
+	canPoll(hwCanInputQueue);
 }
 
 void hwSendRequest(uint16_t requestId, uint16_t wParam)

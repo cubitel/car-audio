@@ -15,6 +15,7 @@ message TunerConfig {
 message SystemConfig {
 	optional uint32 activeTimeout = 1 [default = 1800];
 	optional uint32 standbyTimeout = 2 [default = 3600];
+	optional uint32 carType = 3 [default = 2];
 }
 
 message Config {

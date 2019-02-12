@@ -53,6 +53,7 @@ SRC= \
   src/protobuf/pb_decode.c \
   src/cars/api.c \
   src/cars/ford_cd3xx.c \
+  src/cars/mercedes_w164.c \
   src/radio/api.c \
   src/radio/rds.c \
   src/radio/si47xx.c \

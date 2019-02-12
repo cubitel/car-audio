@@ -2,6 +2,8 @@
 #define _CAN_H
 
 #include <stdint.h>
+#include <FreeRTOS.h>
+#include <queue.h>
 #include <stm32f4xx.h>
 
 #define CAN_MODE_OFF            0
@@ -13,7 +15,8 @@
 #define CAN_SPEED_250           1
 #define CAN_SPEED_500           2
 #define CAN_SPEED_1000          3
-#define CAN_SPEED_MAXID         3
+#define CAN_SPEED_83            4
+#define CAN_SPEED_MAXID         4
 
 #define CAN_AUTOBAUD_TIMEOUT    500
 #define CAN_RX_TIMEOUT          2000
@@ -26,6 +29,7 @@ typedef struct {
 	CAN_TypeDef *device;
 	uint8_t mode;
 	uint8_t speed;
+	uint8_t interfaceId;
 	uint32_t flags;
 	uint32_t autobaudTimer;
 	uint32_t rxTimer;
@@ -40,8 +44,20 @@ typedef struct {
 	uint32_t rxCount;
 } can_status_t;
 
+typedef struct {
+	uint8_t interfaceId;
+	uint8_t dataLen;
+	uint16_t reserved;
+	uint32_t canId;
+	union {
+		uint32_t words[2];
+		uint8_t bytes[8];
+	};
+} can_packet_t;
+
 void canInit(void);
 void canProcess(uint32_t msec);
+void canPoll(QueueHandle_t queue);
 void canSend(can_t *can, uint32_t id, uint8_t *data, uint8_t len);
 int canIsActive(void);
 void canGetStatus(can_status_t *status);

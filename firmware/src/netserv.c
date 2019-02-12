@@ -282,6 +282,16 @@ static void httpClientTask(void *p)
 			httpSendResponse(client, 200);
 			break;
 		}
+		if (!strcmp((char *)client->httpRequest, "GET /system/can/dump_enable")) {
+			hwSendRequest(HWRQ_SYSTEM_CANDUMP, 1);
+			httpSendResponse(client, 200);
+			break;
+		}
+		if (!strcmp((char *)client->httpRequest, "GET /system/can/dump_disable")) {
+			hwSendRequest(HWRQ_SYSTEM_CANDUMP, 0);
+			httpSendResponse(client, 200);
+			break;
+		}
 
 		httpSendResponse(client, 404);
 	} while (0);

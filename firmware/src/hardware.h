@@ -56,6 +56,9 @@
 #define HWRQ_RADIO_MUTE         0x0103
 #define HWRQ_RADIO_MUTE_TOGGLE  0x0104
 
+#define HWRQ_SYSTEM_KEYPRESS    0x0201
+#define HWRQ_SYSTEM_CANDUMP     0x0202
+
 typedef struct {
 	uint16_t requestId;
 	uint16_t wParam;
@@ -93,6 +96,7 @@ void hwInit(void);
 uint8_t hwGetMode(void);
 void hwSetMode(uint8_t mode);
 void hwTask(void *p);
+void hwPoll(void);
 void hwSendRequest(uint16_t requestId, uint16_t wParam);
 uint32_t hwGetBootCause(void);
 
